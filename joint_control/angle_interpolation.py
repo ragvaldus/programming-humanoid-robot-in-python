@@ -21,8 +21,9 @@
 
 
 from pid import PIDAgent
-from keyframes import hello
-
+from keyframes import hello, leftBackToStand, wipe_forehead
+import numpy as np
+from scipy.interpolate import CubicSpline
 
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
@@ -32,18 +33,49 @@ class AngleInterpolationAgent(PIDAgent):
                  sync_mode=True):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
+        self.init_timestamp = self.perception.time
 
     def think(self, perception):
         target_joints = self.angle_interpolation(self.keyframes, perception)
-        target_joints['RHipYawPitch'] = target_joints['LHipYawPitch'] # copy missing joint in keyframes
+        # target_joints['RHipYawPitch'] = target_joints['LHipYawPitch'] # copy missing joint in keyframes
         self.target_joints.update(target_joints)
         return super(AngleInterpolationAgent, self).think(perception)
+
+    #The formula is wrong in the pdf, this is the correct one wher only one variable for time exists
+    def cubic_bezier(p0, p1, p2, p3, t):
+        return lambda t: (1-t)**3 * p0 + 3*(1-t)**2 * t * p1 + 3*(1-t) * t**2 * p2 + t**3 * p3
 
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
+        joints, times, keys = keyframes
+        current_time = perception.time - self.init_timestamp
+    
+        #Cubic Bezier Interpolation
+        for joint_index in range(len(joints)):
+            #Get correct keyframe
+            keyframes = keys[joint_index]
+            time_values = times[joint_index]
 
+            for i in range(len(keyframes)-1):
+                if(time_values[i]< current_time and time_values[i+1] > current_time):
+                    P0 = keyframes[i][0]
+                    P3 = keyframes[i + 1][0] # The last in this is the first in next
+
+                    P1 = P0 + keyframes[i][2][2] # 
+                    P2 = P3 + keyframes[i + 1][1][2]
+
+                    t = (current_time - time_values[i]) / (time_values[i + 1] - time_values[i])
+    
+                    target_joints[joints[joint_index]] = (1-t)**3 * P0 + 3*(1-t)**2 * t * P1 + 3*(1-t) * t**2 * P2 + t**3 * P3
+
+
+        if 'LHipYawPitch' in target_joints:
+            target_joints['RHipYawPitch'] = target_joints['LHipYawPitch']
         return target_joints
+
+    
+
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()

@@ -15,6 +15,8 @@ import sys
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'software_installation'))
 
 import numpy as np
+import time 
+import copy
 from collections import deque
 from spark_agent import SparkAgent, JOINT_CMD_NAMES
 
@@ -34,16 +36,18 @@ class PIDController(object):
         self.e1 = np.zeros(size)
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
-        delay = 0
-        self.Kp = 0
-        self.Ki = 0
-        self.Kd = 0
+        delay = 1
+        self.Kp = 27
+        self.Ki = 0.5
+        self.Kd = 0.1
         self.y = deque(np.zeros(size), maxlen=delay + 1)
 
     def set_delay(self, delay):
         '''
         @param delay: delay in number of steps
         '''
+        #Varför funkar inte detta? Jag fattar inte varför originalkoden inte har en deque 
+        # per servo, utan bara en deque för alla servos. Detta gör att delay inte funkar
         self.y = deque(self.y, delay + 1)
 
     def control(self, target, sensor):
@@ -52,8 +56,34 @@ class PIDController(object):
         @param sensor: current values from sensor
         @return control signal
         '''
+
         # YOUR CODE HERE
 
+        # Since the inputs ar of type np.array we can use vectorized operations
+        # to calculate the predicted value for each servo. [x,y,z] *[x,y,z] = [x^2, y^2, z^2]
+
+        # angle(t) = angle(t-1) + speed * dt
+        predicted_val = sensor + self.u * self.dt
+        self.y.append(copy.deepcopy(predicted_val)) #Add to buffer a copy of predicted_val to ensure no reference is made 
+        
+        # # Use modelprediction
+        e = target - (sensor - self.y.popleft() + predicted_val)  
+
+        # discrete PID-function: u = Kp * e + Ki * sum(e) + Kd * (e - e_old) / dt
+        #  u(tk) = u(tk−1) + (Kp + Ki∆t + Kd/∆t )e(tk) − (Kp + 2Kd/∆t )e(tk−1) + Kd/∆t e(tk−2)
+        
+        #(Kp + Ki*dt + Kd/dt) * e
+        P = (self.Kp + self.Ki * self.dt + self.Kd / self.dt) * e
+        #-(Kp + 2*Kd/dt) * e_old
+        I = -(self.Kp + (2 * self.Kd) / self.dt) * self.e1
+        #(Kd/dt) * e_old_old
+        D = (self.Kd / self.dt) * self.e2
+
+        #Update values for next iteration
+        self.u += P + I + D
+        self.e2 = self.e1
+        self.e1 = e
+        
         return self.u
 
 
