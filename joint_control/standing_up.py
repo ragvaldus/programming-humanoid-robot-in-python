@@ -32,7 +32,9 @@ class StandingUpAgent(PostureRecognitionAgent):
             self.keyframes = leftBackToStand()
         
         elif posture == "Right":
-            self.keyframes = rightBackToStand()        
+            self.keyframes = rightBackToStand()    
+
+        print("Posture: ", posture)    
 
 class TestStandingUpAgent(StandingUpAgent):
     '''this agent turns off all motor to falls down in fixed cycles
@@ -63,3 +65,4 @@ class TestStandingUpAgent(StandingUpAgent):
 if __name__ == '__main__':
     agent = TestStandingUpAgent()
     agent.run()
+

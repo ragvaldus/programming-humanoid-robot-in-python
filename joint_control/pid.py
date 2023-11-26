@@ -36,8 +36,8 @@ class PIDController(object):
         self.e1 = np.zeros(size)
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
-        delay = 1
-        self.Kp = 20
+        delay = 0
+        self.Kp = 21
         self.Ki = 0.5
         self.Kd = 0.1
         self.y = deque(np.zeros(size), maxlen=delay + 1)
@@ -83,8 +83,9 @@ class PIDController(object):
         self.u += P + I + D
         self.e2 = self.e1
         self.e1 = e
-        
         return self.u
+
+
 
 
 class PIDAgent(SparkAgent):

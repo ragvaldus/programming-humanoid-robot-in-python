@@ -41,41 +41,36 @@ class AngleInterpolationAgent(PIDAgent):
         self.target_joints.update(target_joints)
         return super(AngleInterpolationAgent, self).think(perception)
 
-    #The formula is wrong in the pdf, this is the correct one wher only one variable for time exists
-    def cubic_bezier(p0, p1, p2, p3, t):
-        return lambda t: (1-t)**3 * p0 + 3*(1-t)**2 * t * p1 + 3*(1-t) * t**2 * p2 + t**3 * p3
-
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
         joints, times, keys = keyframes
         current_time = perception.time - self.init_timestamp
-    
-        #Cubic Bezier Interpolation
+
+        # Cubic Bezier Interpolation
         for joint_index in range(len(joints)):
-            #Get correct keyframe
+            # Get correct keyframe
             keyframes = keys[joint_index]
             time_values = times[joint_index]
 
             for i in range(len(keyframes)-1):
-                if(time_values[i]< current_time and time_values[i+1] > current_time):
-                    P0 = keyframes[i][0]
-                    P3 = keyframes[i + 1][0] # The last in this is the first in next
+                if (time_values[i] < current_time and current_time < time_values[i+1] ):
 
-                    P1 = P0 + keyframes[i][2][2] # 
-                    P2 = P3 + keyframes[i + 1][1][2]
+                    P0 = keyframes[i][0]
+                    # The last in this is the first in next
+                    P3 = keyframes[i + 1][0]
+
+                    P1 = P0 + keyframes[i][1][2]
+                    P2 = P3 + keyframes[i][2][2]
 
                     t = (current_time - time_values[i]) / (time_values[i + 1] - time_values[i])
-    
-                    target_joints[joints[joint_index]] = (1-t)**3 * P0 + 3*(1-t)**2 * t * P1 + 3*(1-t) * t**2 * P2 + t**3 * P3
 
+                    target_joints[joints[joint_index]] = (
+                        1-t)**3 * P0 + 3*(1-t)**2 * t * P1 + 3*(1-t) * t**2 * P2 + t**3 * P3
 
         if 'LHipYawPitch' in target_joints:
             target_joints['RHipYawPitch'] = target_joints['LHipYawPitch']
         return target_joints
-
-    
-
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
